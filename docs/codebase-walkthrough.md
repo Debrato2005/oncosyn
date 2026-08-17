@@ -1,85 +1,60 @@
 # OncoSyn Codebase Walkthrough
 
-This is a living learning guide. It describes verified repository contents only; planned architecture is identified as planned and is documented in [`README.md`](../README.md) and [`backend-build-checklist.md`](backend-build-checklist.md).
+This living guide describes verified contents. Planned architecture is explicitly labelled and owned by [`README.md`](../README.md).
 
 ## Repository map
 
-| Path | Responsibility | Current state |
+| Path | Responsibility | State |
 | --- | --- | --- |
-| `.gitignore` | Ignores common Python artifacts, environments, local secrets, caches, and editor files. | Implemented in the initial commit. It does not select a Python runtime. |
-| `oncosyn_problem_statement.md` | Active MVP product brief. | Untracked documentation; implementation remains planned. |
-| `README.md` | Engineering source of truth: scope, durable decisions, boundaries, roadmap, and verified commands. | Implemented documentation. |
-| `ENGINEERING_PLAYBOOK.md` | Team workflow and release/operational expectations. | Implemented documentation. |
-| `docs/backend-build-checklist.md` | Ordered, executable backend MVP milestones. | Implemented documentation; build work is planned. |
-| `docs/architecture/` | Focused architecture records for data boundaries and escape-certificate behavior. | Implemented documentation. |
-| `docs/architecture/0003-analysis-run-persistence.md` | PostgreSQL persistence decision for immutable analysis-run certificates. | Implemented documentation; database code is planned. |
-| `docs/architecture/0004-asynchronous-analysis-execution.md` | Deferred API/worker/queue design, retained for the point at which measured workload requires it. | Implemented documentation; no worker is planned for the initial build. |
-| `docs/architecture/0005-mvp-analysis-pipeline.md` | The MVP handoff contract for candidate generation, clonal mapping, optimization, provenance, and uncertainty. | Implemented documentation; no pipeline code exists. |
-| `docs/architecture/0006-pyclone-vi-integration.md` | Exact PyClone-VI provider boundary, input/output contract, failure behaviour, and synthetic-fixture strategy. | Implemented documentation; no provider/runtime exists. |
-| `.git/` | Git metadata and hooks. | Generated/local Git internals; do not edit as product source. |
-| `.agents/`, `.codex/` | Local agent/application workspace directories. | Tooling directories; no repository product responsibility is asserted. |
+| `.gitignore` | Ignores Python/build/cache/editor/local-secret artifacts. | Initial tracked configuration; selects no runtime. |
+| `AGENTS.md` | Compact project-specific operating rules for Codex. | Documentation. |
+| `README.md` | Engineering source of truth: scope, contracts, stack, roadmap. | Documentation. |
+| `oncosyn_problem_statement.md` | Active product brief. | Documentation. |
+| `ENGINEERING_PLAYBOOK.md` | Workflow, review, release, secrets, operations. | Documentation. |
+| `docs/backend-build-checklist.md` | Ordered, test-first MVP milestones. | Documentation; all implementation planned. |
+| `docs/research-and-validation.md` | Computational-hit definition, baselines, validation ladder, open research questions, potential collaboration framing. | Documentation. |
+| `docs/architecture/0001-research-data-boundary.md` | Sensitive data/input-tier boundary. | Accepted plan. |
+| `docs/architecture/0002-hypothesis-certificate.md` | Falsifiable hypothesis certificate. | Accepted plan. |
+| `docs/architecture/0003-analysis-run-persistence.md` | Immutable PostgreSQL records. | Accepted plan. |
+| `docs/architecture/0004-asynchronous-analysis-execution.md` | Synchronous-first decision and queue triggers. | Accepted plan; async deferred. |
+| `docs/architecture/0005-mvp-analysis-pipeline.md` | Stage handoffs and failures. | Accepted plan. |
+| `docs/architecture/0006-pyclone-vi-integration.md` | Generic clonal provider, exact PyClone-VI adapter, precomputed path, uncertainty. | Accepted plan. |
+| `docs/architecture/0007-immunotherapy-modality-boundary.md` | Vaccine/TCR peptide-HLA versus future CAR surface-antigen boundary. | Accepted plan. |
+| `.git/` | Generated Git metadata. | Generated; not product source. |
+| `.agents/`, `.codex/` | Local tool state. | Local; no product responsibility. |
 
-## Execution order today
+No application source, manifest, dependency lock, tests, API, schema, migrations, CI, containers, provider runtime, frontend, cache, worker, object storage, or deployment exists.
 
-There is no executable application, package manifest, test suite, PyClone-VI environment, CI workflow, container configuration, database schema, migration configuration, worker, object store, cache, or deployment configuration. The first build is synchronous; PostgreSQL persistence and PyClone-VI clonal inference are selected but unimplemented, while asynchronous infrastructure is deferred until validated need. Consequently, no runtime control flow, API route, persistence flow, or automated failure behavior exists to explain.
+## Reading and planned execution order
 
-The present order of work is documentary and architectural:
-
-1. `README.md` defines what OncoSyn is and what it must not claim.
-2. The architecture records define the sensitive research-data boundary and the intended escape-certificate contract.
-3. `docs/backend-build-checklist.md` turns those constraints into verifiable implementation milestones and identifies the measurable triggers for deferred infrastructure.
-4. `ENGINEERING_PLAYBOOK.md` governs how future changes are tested, reviewed, released, and documented.
-
-## Existing configuration
-
-### `.gitignore`
-
-This file is the only file from the initial commit. It ignores compiled Python files, packaging outputs, virtual environments, test/coverage caches, local `.env` files, common editor state, and several tool-specific caches. Its relevant behavior is protective: local credentials and generated artifacts should not be added accidentally.
-
-It has no runtime effect. It does not install dependencies, start a server, configure a database, select an API framework, or run tests.
-
-## Existing product reference
-
-### `oncosyn_problem_statement.md`
-
-This untracked file is the aligned **OncoSyn MVP problem statement**. It defines the intended high-level flow—preprocessed tumour inputs, PyClone-VI clonal inference, peptide enumeration or supplied-peptide validation, prediction/scoring, inferred clone mapping, portfolio optimization, evidence, and an explanatory output.
-
-No implementation detail in that brief is treated as already built. In particular, listed tools, datasets, API ideas, and example outputs are proposals until added to the repository with configuration and tests.
-
-## Planned execution model
-
-The following is a planned control flow, not current code:
+Read README → active brief → relevant ADR → checklist milestone → playbook. The planned runtime flow—not current code—is:
 
 ```text
-validated analysis input
-  -> synchronous application service
-  -> variant/mutation representation
-  -> PyClone-VI provider -> inferred clone distribution, CCF, and uncertainty
-  -> peptide enumeration or supplied-peptide validation
-  -> peptide/HLA prediction and scoring + normalized candidate evidence
-  -> candidate-to-mutation-to-inferred-clone coverage mapping
-  -> baseline and declared uncertainty/escape scenarios
-  -> bounded robust portfolio optimizer
-  -> provenance, sensitivity analysis, and versioned certificate
-  -> PostgreSQL analysis record -> API/UI result
+tiered processed input + HLA
+  -> schema/eligibility -> immutable run snapshot
+  -> normalized mutations
+  -> explicit ClonalInferenceProvider
+     -> PyClone-VI adapter OR validated precomputed evidence
+  -> uncertain clone assignments/prevalence
+  -> peptide enumeration -> MHCflurry-first candidate evidence
+  -> candidate -> mutation -> clone mapping
+  -> named scenarios + baseline suite + bounded optimizer
+  -> sensitivity/provenance -> hypothesis certificate -> PostgreSQL
 ```
 
-- The input boundary will reject malformed or incompatible data before domain work begins.
-- The application service coordinates the initial synchronous workflow; it is the seam at which persistence or background execution can be added later.
-- Peptide enumeration, prediction/scoring, clonal mapping, and portfolio selection will remain separate so predictor failures cannot corrupt solver rules and MHCflurry is not treated as a peptide generator.
-- The PyClone-VI provider will run only on a complete normalized read-count, copy-number, and explicit tumour-content matrix; it will return typed failure rather than fabricate missing values or use a different inference algorithm.
-- Clonal mapping will join candidates to PyClone-VI's uncertainty-bearing clone assignments and prevalence estimates. Cluster assignments are not lineage; the system will not invent a phylogeny.
-- The optimizer will minimize a declared scenario's residual uncovered clone mass, return an explicit infeasibility result when constraints cannot be met, and not present this measure as a clinical escape probability.
-- Explanations will retain input, source, predictor, clone-mapping, optimizer, and scenario versions; sensitivity re-solves will rank next evidence actions by demonstrated decision impact.
-- Any future delivery layer will map domain failures to safe external errors and must not leak sensitive inputs or stack traces.
+- **Inputs:** targeted-panel Tier A or research-rich Tier B. Sparse/insufficient evidence is rejected or limited; VAF is never converted to pseudo-counts.
+- **Clonal inference:** provider formats stay inside adapters. Cluster/prevalence outputs retain error/posterior and do not establish ancestry.
+- **Candidates:** enumeration and prediction are separate; alternative predictors remain replaceable. Candidate evidence is not a clinical conclusion.
+- **Mapping/optimization:** mapping uncertainty feeds declared scenarios. The optimizer returns coverage/residual uncovered mass and explicit partial/infeasible results.
+- **Certificate:** tests OncoSyn versus named same-input baselines and records assumptions, failure modes, sensitivity, and next validation. A computational hit is only a promoted research hypothesis.
+- **Persistence/delivery:** repositories isolate PostgreSQL; future API routes are thin. Sensitive values never enter logs/errors. Async/platform layers wait for measured triggers.
 
-Detailed decisions and rejected alternatives are in the architecture records. Tests for each stage are specified before implementation in the build checklist.
+The MVP modality is neoantigen/T-cell immunotherapy. TCR-T and conventional CAR-T require the later distinct constraints in ADR 0007; small-molecule portfolios are deferred.
 
-## Generated and local files
+## Current file behaviour
 
-- `.git/` is generated Git state. Do not document or modify its internal files as application behavior.
-- Python caches, virtual environments, coverage output, local environment files, and similar generated artifacts are intentionally covered by `.gitignore` when they are introduced.
+`.gitignore` protects common generated/local files but installs and runs nothing. Markdown files define plans and constraints; they provide no executable route, dependency, schema, failure handling, or test result. `.git/` is generated; local tool directories and future caches/environments/build artifacts must not be treated as source.
 
 ## Maintenance rule
 
-Update this walkthrough in the same change whenever code, tests, configuration, migrations, Docker files, CI workflows, infrastructure, or frontend files change. Add real paths, dependencies, inputs, outputs, control flow, failure behavior, tests, and exact commands as they are introduced. Do not leave planned statements behind once implementation diverges from them.
+Update this guide in the same change whenever code, tests, configuration, migrations, Docker, CI, infrastructure, or frontend files change. Add real paths in execution order with dependencies, inputs, outputs, control flow, failure behaviour, tests, generated-file labels, and exact commands. Remove or revise planned language when implementation differs.

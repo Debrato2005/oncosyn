@@ -6,7 +6,7 @@ Accepted for the production-oriented product. No database schema, ORM, repositor
 
 ## Problem
 
-OncoSyn needs to make a result reproducible and reviewable after it has been generated. An in-memory-only application loses the input, predictor versions, assumptions, chosen portfolio, and provenance that constitute the escape certificate. A startup product also needs concurrent workspace access, managed backups, and transactional integrity.
+OncoSyn needs reproducible, reviewable results. In-memory execution loses the input, provider versions, assumptions, baselines, portfolio, and provenance that constitute the hypothesis certificate. A startup product also needs concurrent workspace access, managed backups, and transactional integrity.
 
 ## Constraints
 
@@ -22,11 +22,12 @@ Use managed PostgreSQL as the system of record behind persistence/repository ada
 
 - analysis-run identity, creation metadata, and schema version;
 - normalized input snapshot and its content identity;
-- PyClone-VI provider identity/settings, normalized inference result, and its uncertainty-bearing mutation-to-clone distribution;
+- input tier, observed scope, adequacy/limitation status, source identities, and normalized snapshot;
+- selected clonal-inference provider identity/settings, normalized or validated precomputed result, and its uncertainty-bearing mutation-to-clone distribution;
 - generated candidate evidence and provenance;
 - clonal evidence and declared escape scenarios;
-- portfolio result, solver status, and algorithm versions; and
-- the completed escape certificate.
+- baseline results, portfolio result, solver status, scenarios, and algorithm versions; and
+- the completed hypothesis certificate, including assumptions, failure modes, sensitivity, and next validation action.
 
 The domain service creates immutable records through the adapter. The API/delivery layer reads a certificate through the same boundary. The database model is not the domain model.
 
@@ -41,8 +42,8 @@ The domain service creates immutable records through the adapter. The API/delive
 
 ```text
 validated molecular input -> immutable run snapshot -> PostgreSQL
-  -> PyClone-VI inference records -> candidate/clone/scenario records -> optimizer result
-  -> immutable escape certificate -> PostgreSQL -> API/UI read model
+  -> selected clonal-provider records -> candidate/clone/scenario/baseline records
+  -> optimizer result -> immutable hypothesis certificate -> PostgreSQL -> API/UI read model
 ```
 
 ## Error and security behavior
@@ -56,7 +57,7 @@ validated molecular input -> immutable run snapshot -> PostgreSQL
 
 ## Testing strategy
 
-- Repository tests for creating and reading complete immutable certificates, including PyClone-VI input/output provenance and uncertainty records.
+- Repository tests for complete immutable certificates, including input tier, selected clonal-provider/precomputed provenance, uncertainty, baselines, and next actions.
 - Migration upgrade, rollback, and restore tests against a production-like non-sensitive PostgreSQL environment.
 - Transaction/failure tests ensuring an error cannot leave a successful-but-incomplete certificate.
 - Contract tests proving domain/optimizer code does not require a concrete database model.

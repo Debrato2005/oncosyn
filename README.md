@@ -1,137 +1,119 @@
 # OncoSyn
 
-OncoSyn is a research-stage portfolio engine for personalised cancer neoantigen exploration. Given tumour information, it is intended to generate candidate neoantigens, select a bounded team of targets that covers meaningful tumour subclones while accounting for plausible escape routes, and explain the selection with evidence provenance and uncertainty.
+**OncoSyn is an evolution-aware immunotherapy hypothesis and target-portfolio engine.** It asks: given many plausible tumour-specific targets, which small combination should investigators take forward?
 
-[`oncosyn_problem_statement.md`](oncosyn_problem_statement.md) is the active product brief. **OncoSyn is the active project name.**
+OncoSyn aims to reduce the search and prioritization space between tumour molecular profiling and downstream experimental therapeutic development. It produces research hypotheses—not treatment recommendations, efficacy predictions, or validated therapeutics. [`oncosyn_problem_statement.md`](oncosyn_problem_statement.md) is the active brief; **OncoSyn** is the only active name.
 
-## Current repository state
+## Repository state
 
-This repository is an initial scaffold. As of the initial commit, it contains no application source, dependency manifest, runtime configuration, test suite, CI workflow, container configuration, database schema, or migration tooling. The only tracked project file before this documentation was `.gitignore`; its Python-oriented ignores are not evidence of a selected runtime or framework.
+This is a documentation-only scaffold: no application, manifest, API, database, tests, CI, containers, or deployment exist. All technology and modules below are planned contracts. Follow the [`backend build checklist`](docs/backend-build-checklist.md) and [`codebase walkthrough`](docs/codebase-walkthrough.md).
 
-The product is therefore a documented target, not an implemented system. The architecture is production-oriented from the start, even though no runtime infrastructure exists yet. See [`docs/backend-build-checklist.md`](docs/backend-build-checklist.md) for the ordered build plan and [`docs/codebase-walkthrough.md`](docs/codebase-walkthrough.md) for the live repository map.
+## MVP boundary
 
-## Vision and intended scope
-
-The MVP flow is:
+The MVP is one coherent **neoantigen/T-cell immunotherapy portfolio** track:
 
 ```text
-tumour information -> candidate generation -> escape-aware portfolio selection -> explanation
+processed tumour profile + HLA
+  -> variant representation
+  -> clonal-inference provider (PyClone-VI initially)
+  -> uncertain clone assignments/prevalence
+  -> peptide enumeration
+  -> presentation/binding prediction (MHCflurry initially)
+  -> candidate evidence -> candidate -> mutation -> clone mapping
+  -> OncoSyn optimizer + declared escape scenarios
+  -> evidence, coverage, uncertainty, and modelled escape-risk certificate
 ```
 
-Its intended inputs are preprocessed tumour molecular records with mutation/sample read counts, allele-specific copy-number and tumour-content evidence; HLA type; and optional expression evidence. PyClone-VI infers clone/subclone assignments, prevalence/CCF, and uncertainty before peptide selection. Intended outputs are a compact target portfolio, clone-coverage and modelled escape-risk summaries, candidate-level evidence, and the next evidence action most likely to reduce a material uncertainty.
+The output is a bounded `K`-candidate portfolio, coverage, candidate evidence, modelled residual uncovered clone mass/robustness under named scenarios, provenance, sensitivity, baseline comparisons, assumptions, failure modes, and next validation action. A promoted candidate is a **computational hit for downstream investigation**, not a biologically or clinically validated hit.
 
-OncoSyn is research decision support for investigation. It must not claim that a portfolio is clinically effective, prescribe treatment, or replace expert and experimental validation.
+### Input tiers
+
+OncoSyn consumes processed results, never raw sequencing files.
+
+| Tier | Evidence | Interpretation |
+| --- | --- | --- |
+| **A — targeted-panel** | Mutations; actual reference/alternate counts where available (or reported VAF/depth for adequacy assessment); copy number; purity; sample metadata; separate HLA; optional expression. | Run clonal inference only when the selected provider's exact evidence is adequate. Label sparse panels as limited; never imply complete heterogeneity. |
+| **B — research-rich** | WES/WGS-derived processed calls, matched normal, allele-specific copy number, RNA, HLA, and optional multiregion/longitudinal samples. | Enables richer research analysis but is not clinical truth. |
+
+PyClone-family providers require sequencing-derived reference/alternate counts and copy-number/purity evidence; never manufacture pseudo-counts from VAF. Insufficient evidence is rejected, or explicitly validated precomputed clone evidence is selected through a separate provider—never silently substituted.
+
+## Scope and modality rules
+
+- **Current:** neoantigen/T-cell portfolios. Peptide/HLA evidence supports vaccine and TCR-T investigation.
+- **V3:** TCR-T may reuse peptide/HLA evidence but needs its own feasibility and safety constraints.
+- **V4:** conventional CAR-T primarily targets cell-surface antigens and requires surface expression, tumour specificity, normal-tissue/off-tumour risk, prevalence, stability, heterogeneity, and antigen-loss evidence. It is not the peptide/HLA workflow.
+- **Deferred:** small-molecule targets, raw sequencing/variant calling, HLA typing, purity/copy-number estimation, definitive phylogeny, and clinical outcome prediction.
+
+See [ADR 0007](docs/architecture/0007-immunotherapy-modality-boundary.md).
 
 ## Principles and non-goals
 
-### Principles
+- **Portfolio over ranking:** optimize the combination, not independent scores.
+- **Careful novelty:** OncoSyn investigates uncertainty-aware, multi-objective therapeutic portfolio selection across inferred tumour heterogeneity and defined evolutionary/escape scenarios. It does not claim to be unprecedented.
+- **Uncertainty is data:** preserve prevalence error, assignment uncertainty, predictor disagreement, missing evidence, and assumptions.
+- **Traceability:** retain every source, version, transformation, threshold, exclusion, and optimizer contribution.
+- **Replaceable upstream science:** clonal inference, peptide generation, predictors, and evidence sources stay behind normalized boundaries; they are not OncoSyn's proprietary algorithm.
+- **Research-only:** no diagnosis, prescription, relapse-prevention, clinical efficacy, or regulatory-timeline claims.
+- **Production discipline:** reproducibility, migrations, access control, observability, backup, and recovery are required before sensitive production use; speculative scale infrastructure is not.
 
-- **Portfolio over ranking:** optimize the selected set collectively; do not merely return the highest individually scored candidates.
-- **Traceability:** every output must retain the evidence inputs, source/version, assumptions, and optimizer contribution that produced it.
-- **Uncertainty is an output:** preserve uncertainty in clonal assignment and candidate evidence; do not silently turn uncertain estimates into facts.
-- **Biology-aware constraints:** model escape assumptions explicitly and distinguish them from observed tumour evidence.
-- **Production discipline from the start:** reproducibility, access control, observability, migrations, and recoverability are product requirements, not demo polish.
-- **Privacy by design:** treat genomic and HLA data as sensitive research data even when the MVP uses synthetic or public examples.
+## Durable architecture decisions
 
-### Explicit non-goals for the MVP
+| Decision | Rationale and consequence |
+| --- | --- |
+| One immunotherapy MVP track | Keeps candidate semantics and validation coherent; drug targets and CAR-T require separate models. |
+| Generic `ClonalInferenceProvider`; PyClone-VI first | Inference is upstream evidence, not novelty. Domain/optimizer never consume provider formats; validated precomputed evidence is an explicit alternative. |
+| Enumeration separate from prediction | Peptide production and presentation estimation differ. Use MHCflurry first; keep NetMHCpan/pVACtools-derived evidence replaceable; do not train an MVP MHC model. |
+| Bounded robust optimization | Compare the same `K` and candidate set against Top-`K`, clonality-weighted, coverage-only, and reproducible escape/minimax baselines. |
+| Hypothesis certificate | Every result must expose selected targets, source mutations/clones, evidence, uncertainty, scenarios, baseline, assumptions, failure modes, and next check. |
+| PostgreSQL system of record | Immutable concurrent analysis records require transactions/migrations; use SQLAlchemy repositories/Alembic and SQLite only for isolated tests. |
+| Synchronous execution first | No runtime evidence justifies Celery/Redis/object storage/deployment; preserve service/provider boundaries for later change. |
 
-- Clinical treatment recommendation, efficacy prediction, diagnosis, or regulatory-grade decision support.
-- Raw sequencing ingestion, variant calling, HLA typing, purity/copy-number estimation, or phylogeny reconstruction. The MVP performs clonal inference only from sufficient preprocessed PyClone-VI inputs.
-- A universal model for drug-target and neoantigen portfolios. The first product track is neoantigen vaccines; drug-target resistance modelling is deferred.
-- A claim of being the first combinatorial neoantigen optimizer. The product differentiator is the evidence-traceable, escape-aware decision workflow.
-- A fabricated phylogenetic tree. A clone tree is only displayed when a compatible reconstruction is supplied; otherwise show clone coverage without parent-child claims.
+ADRs: [data boundary](docs/architecture/0001-research-data-boundary.md), [certificate](docs/architecture/0002-hypothesis-certificate.md), [persistence](docs/architecture/0003-analysis-run-persistence.md), [execution](docs/architecture/0004-asynchronous-analysis-execution.md), [pipeline](docs/architecture/0005-mvp-analysis-pipeline.md), [clonal inference](docs/architecture/0006-pyclone-vi-integration.md), and [modality](docs/architecture/0007-immunotherapy-modality-boundary.md).
 
-## Architecture decisions
+## Module ownership
 
-| Decision | Rationale | Consequence |
+| Module | Owns | Must not own |
 | --- | --- | --- |
-| Start with a neoantigen-vaccine portfolio, not dual therapy modes. | HLA-specific presentation and immune escape give one coherent MVP model. | Drug-target mode requires a separate design record before implementation. |
-| Include PyClone-VI clonal inference as an upstream MVP component. | Portfolio selection needs clone/prevalence estimates, but clonal inference is not OncoSyn's novel algorithm. | Require a validated read-count, allele-specific copy-number, and tumour-content input contract; never fabricate missing values. |
-| Keep candidate generation, clonal evidence, optimization, and explanation as separate modules. | Existing predictors and clonal tools can change independently of OncoSyn's selection logic. | Modules exchange versioned, normalized data; no module reaches into another's persistence. |
-| Use a bounded robust portfolio objective rather than top-K ranking. | The project objective is clone coverage under plausible escape scenarios. | The optimizer must expose expected and worst-case results, assumptions, and alternatives. |
-| Make evidence provenance and uncertainty first-class inputs. | A biologically plausible score is not proof; uncertain data can change a selected portfolio. | Every output needs source/version, confidence or interval, and an audit trail. |
-| Separate public evidence from patient-specific verification. | Public datasets can calibrate plausibility but cannot confirm a particular patient's expression or HLA loss. | The system labels public lookups and patient-specific checks separately. |
-| Start with de-identified, synthetic, or publicly usable cases while production controls are built. | The repository has no security or governance implementation today. | Customer/patient-derived data is blocked until the controls in ADR 0001 are verified. |
-| Use managed PostgreSQL as the system of record. | The product needs concurrent users, durable backups, transactional integrity, and a clear managed-service operating model. | Use migrations and a persistence adapter from the start; SQLite is permitted only for isolated local tests. |
-| Start analysis orchestration synchronously. | The core workflow and its actual runtime profile do not exist yet; a queue would add operational complexity before proving a need. | Keep an application-service boundary so a worker adapter can be added later without changing domain or optimizer code. |
+| Input/API | Schemas, auth, validation, serialization, error mapping. | Biology, solver, direct SQL. |
+| Clonal inference | Eligibility and normalized uncertain clone evidence. | Variant calling, ancestry, selection. |
+| Peptide enumeration | Mutation/sequence-to-peptide records. | HLA scoring or selection. |
+| Candidate evidence | Versioned predictor/evidence normalization. | Portfolio choice or clinical interpretation. |
+| Clonal mapping | Candidate -> mutation -> clone distribution with uncertainty. | Deterministic lineage claims. |
+| Optimizer | `K`, constraints, scenarios, objectives, baselines, diagnostics. | Provider formats, persistence, lookups. |
+| Certificate | Provenance, comparisons, sensitivity, next actions. | Hidden reruns or source mutation. |
+| Repository | Immutable persistence and transactions. | Domain decisions. |
 
-Further rationale and constraints live in [`docs/architecture/0001-research-data-boundary.md`](docs/architecture/0001-research-data-boundary.md), [`docs/architecture/0002-escape-certificate.md`](docs/architecture/0002-escape-certificate.md), [`docs/architecture/0003-analysis-run-persistence.md`](docs/architecture/0003-analysis-run-persistence.md), [`docs/architecture/0004-asynchronous-analysis-execution.md`](docs/architecture/0004-asynchronous-analysis-execution.md), and [`docs/architecture/0006-pyclone-vi-integration.md`](docs/architecture/0006-pyclone-vi-integration.md).
+Backend layering is `API -> service -> repository -> ORM`; schemas own API boundaries, services orchestrate, repositories persist, and domain/optimizer code stays independent of FastAPI and SQLAlchemy.
 
-The MVP stage contract is defined in [`docs/architecture/0005-mvp-analysis-pipeline.md`](docs/architecture/0005-mvp-analysis-pipeline.md). It is the source of truth for the handoff between clonal inference, candidate generation, clonal mapping, optimization, provenance, and uncertainty analysis.
+## Planned stack and operating contracts
 
-## Selected technology stack
+None is implemented: Python 3.11/`uv`; FastAPI/Pydantic/Uvicorn; SQLAlchemy async/Alembic/PostgreSQL; OR-Tools CP-SAT; pinned PyClone-VI provider; MHCflurry predictor adapter; later React/TypeScript/Vite/Tailwind/Plotly. Add cloud, containers, queues, caches, or object storage only after documented measured triggers.
 
-These are selected production targets; none has been implemented in the repository yet.
+- An immutable analysis run owns its input snapshot/tier, providers, candidates, scenarios, baselines, portfolio, certificate, and provenance. Changes create a new run.
+- Do not store raw sequencing. Patient/customer data is blocked until ADR 0001 governance and security controls are verified.
+- Never commit/log secrets, identifiers, genomic records, tokens, or `.env` values. Tests use deterministic synthetic/public non-sensitive fixtures and isolated settings.
+- Use explicit versioned schemas and typed errors for invalid/insufficient input, unavailable providers, unsupported prediction, mapping failure, partial/infeasible optimization, and internal failure.
+- Record input/source, provider/predictor, optimizer/solver, scenario, baseline, schema, settings, and software versions.
 
-| Concern | Selected technology | Boundary |
-| --- | --- | --- |
-| Core runtime | Python 3.11, `uv`, `pyproject.toml`, committed lockfile | Python owns candidate generation, science, optimization, API, and any future workers. |
-| API contract | FastAPI, Pydantic, Uvicorn | API validates/authorizes and serializes; it contains no biological or persistence rules. |
-| Analysis execution | Synchronous application service initially | Domain orchestration is isolated so an asynchronous worker can be added after measured need. |
-| Clonal inference | PyClone-VI in a version-pinned external provider environment | PyClone-VI TSV/CLI/HDF5 details stay behind an adapter; no substitute inference engine is silently used. |
-| Peptide enumeration | A deterministic adapter or supplied, validated mutant-peptide records | Enumeration needs mutation/sequence context; it must be distinct from biological prediction. |
-| Candidate prediction/scoring | MHCflurry behind a provider adapter | MHCflurry scores peptide/HLA pairs; predictor-specific formats cannot leak into domain/optimizer models. |
-| Optimization | Google OR-Tools CP-SAT | Solver formulation belongs solely in the optimizer module. |
-| Relational data | Managed PostgreSQL with SQLAlchemy and Alembic migrations | Repositories isolate PostgreSQL from the domain. |
-| Artifacts | PostgreSQL-backed structured analysis records initially | Private object storage is deferred until permitted large artifacts or report exports are introduced. |
-| Frontend | React, TypeScript, Vite, Tailwind CSS, Plotly.js | Frontend presents certificates and calls the API; it cannot calculate clinical/biological conclusions. |
-| Authentication | Standards-based OIDC/OAuth provider with role-based workspace access | Identity provider is replaceable; authorization is enforced server-side. |
-| Operations | Local development tooling and structured application logging | Cloud provider, containerization, queueing, and deployment infrastructure are deferred until the core workflow is verified. |
+## Validation and roadmap
 
-## Domain boundaries and ownership
+MVP metrics are computational: baseline-relative coverage/robustness, search-space reduction, retained high-confidence evidence, profile-to-certificate time, and multi-source support. They are not efficacy measurements. The validation ladder, ten open research questions, and potential—not current—collaboration asks are owned by [`docs/research-and-validation.md`](docs/research-and-validation.md).
 
-| Area | Owns | Must not own |
-| --- | --- | --- |
-| Peptide enumeration | Candidate peptide records derived from adequate mutation/sequence context, or validation of supplied peptide records. | HLA prediction/scoring, clone inference, or portfolio choice. |
-| Candidate prediction/scoring | Predictor output normalized into candidate evidence for peptide/HLA pairs. | Peptide enumeration, clone inference, portfolio choice, persistence policy, or user-facing clinical interpretation. |
-| Clonal inference | Normalized mutation/sample read-count, allele-specific copy-number, tumour-content records and PyClone-VI-derived uncertainty-bearing clone assignments/prevalence estimates. | Variant calling, purity/copy-number invention, ancestry claims, peptide scoring, or portfolio choice. |
-| Clonal evidence | Clone membership, prevalence/CCF, and uncertainty metadata. | Invented ancestry or candidate quality scores. |
-| Portfolio optimization | Selection under K, coverage, robustness, and declared scenario assumptions. | Prediction-tool implementation or mutation-data parsing. |
-| Evidence and explanation | Provenance, uncertainty, exclusions, and next-evidence-action ranking. | Mutating source evidence or silently changing optimization inputs. |
-| Interface/API | Request validation, authentication when introduced, response serialization, and error mapping. | Biological rules, optimization formulation, or direct persistence logic. |
-| Infrastructure | Configuration loading, logging, secret delivery, deployment, and backups when introduced. | Domain-specific policy. |
+1. **MVP:** neoantigen/T-cell portfolio and falsifiable hypothesis certificate.
+2. **V1:** robust uncertainty-aware clonal analysis and targeted-panel adequacy benchmarks.
+3. **V2:** richer antigen-presentation/immunogenicity evidence.
+4. **V3:** TCR-T-specific constraints.
+5. **V4:** separate CAR-T target/safety model.
+6. **V5:** preclinical feedback loop; no animal-to-human efficacy inference.
+7. **V6:** longitudinal/ctDNA tumour state.
+8. **V7:** closed-loop hypothesis engine linking selection to accumulated experiments.
 
-Routes/controllers must remain thin. Business rules belong in domain services; persistence adapters must be replaceable and cannot become the source of biological decisions.
+Long term, longitudinal response/relapse, immunopeptidomics, and experiments may test correlations between scores and outcomes. Those claims require separate evidence and validation.
 
-## Data, API, security, and versioning conventions
+Personalization is conditioned on observed mutations, inferred heterogeneity, patient HLA, available expression, and—only in later validated versions—longitudinal response evidence.
 
-These are contracts for future implementation; no API or datastore exists yet.
+## Workflow and documentation contract
 
-- **Data ownership:** an analysis run owns its normalized molecular input snapshot, PyClone-VI provider configuration/result, generated candidates, assumptions, selection result, and provenance. Store these as immutable, versioned records in PostgreSQL; create a new run to revise an input or algorithm configuration.
-- **Persistence:** use managed PostgreSQL through a persistence/repository adapter and explicit migrations. The domain and optimizer cannot depend on database models. The initial schema stores analysis-run metadata, input snapshots, candidate evidence, scenario configuration, portfolio results, and provenance; it does not store raw sequencing files.
-- **Object storage:** do not add object storage until the product accepts permitted large artifacts or generates downloadable reports. When introduced, use private encrypted S3-compatible storage; PostgreSQL will hold ownership, checksum, classification, retention, and object-reference metadata. Direct public object access will be prohibited.
-- **Caching:** introduce no cache initially. If measurements demonstrate a need, cache only reproducible, version-keyed derived artifacts; cache keys must include input content identity, PyClone-VI provider/version/settings, predictor version, candidate-generation settings, optimizer version, and scenario configuration. Cached results never substitute for evidence provenance or PostgreSQL's durable analysis record.
-- **Security:** do not commit secrets, sample identifiers, raw patient data, access tokens, or local environment files. Use OIDC/OAuth-based authentication, role-based workspace authorization, encrypted transport, managed secret delivery, audit events, and least-privilege service identities. Customer/patient-derived data is disabled until a documented governance, retention, deletion, and incident-response process is implemented and verified.
-- **API:** when introduced, use explicit request/response schemas, stable resource identifiers, validation before domain execution, and machine-readable errors. Do not expose stack traces or sensitive input values in responses.
-- **Errors:** distinguish invalid input, unavailable PyClone-VI provider, unavailable external evidence, incompatible predictor/inference output, infeasible optimization, and internal failure. Preserve a safe diagnostic correlation ID in logs once logging exists.
-- **Versioning:** version the public API and every analysis artifact. Record the schema, PyClone-VI provider/version/settings, predictor, optimizer, source-dataset, and scenario versions in each result; use semantic versioning for released software.
+No setup, test, migration, or release commands exist; do not invent them. Currently verified inspection commands are `git status --short`, `git log --oneline -8`, and `rg --files`. Add exact commands with tooling. See [`ENGINEERING_PLAYBOOK.md`](ENGINEERING_PLAYBOOK.md).
 
-## Roadmap
-
-1. **Core foundation:** install and pin tooling; establish schemas, tests, and non-sensitive test fixtures.
-2. **Input/domain contracts:** validate and persist immutable preprocessed variant, copy-number, tumour-content, HLA, and scenario input snapshots.
-3. **Variant and clonal inference:** implement the PyClone-VI provider boundary, synthetic fixtures, strict input completeness checks, and uncertainty-bearing normalized results.
-4. **Peptide enumeration and scoring:** implement supplied-peptide validation or deterministic enumeration, then one reproducible MHCflurry prediction/scoring adapter.
-5. **Candidate-to-clone mapping:** map candidates through source mutations to inferred clone assignments/prevalence estimates while preserving documented assignment uncertainty.
-6. **Portfolio optimizer:** implement deterministic bounded selection against baseline and declared escape scenarios, returning a structured partial/infeasible result when needed.
-7. **Evidence/uncertainty certificate:** assemble provenance and sensitivity-ranked next actions, then persist the completed certificate on the immutable PostgreSQL analysis run.
-8. **Hardening when required:** add delivery/API expansion, authentication, observability, object storage, background execution, and deployment only when the validated analysis pipeline needs them. The technology table is an architecture target, not a mandate to build these layers first.
-9. **Deferred product:** raw sequencing pipelines, clinical treatment recommendation, drug-target mode, and phylogeny reconstruction only after their own validated models and governance decisions.
-
-## Local development and verification
-
-No application setup, test, migration, or build commands are configured yet. Do not invent commands or imply a runtime exists.
-
-The currently verified repository checks are:
-
-```bash
-git status --short
-git log --oneline -8
-rg --files
-```
-
-When tooling is introduced, add the exact install, development, test, migration, lint, type-check, and release-verification commands here in the same change. The required implementation sequence and command placeholders are maintained in [`docs/backend-build-checklist.md`](docs/backend-build-checklist.md).
-
-## Documentation is a contract
-
-Future changes must preserve the decisions in this README or deliberately revise them in the same pull request, including rationale, consequences, tests, and affected architecture records. Update the codebase walkthrough whenever code, tests, configuration, migrations, Docker, CI, or frontend files change. See [`ENGINEERING_PLAYBOOK.md`](ENGINEERING_PLAYBOOK.md) for the working agreement.
+Future changes must preserve these decisions or deliberately revise the README, affected ADRs, checklist, and walkthrough in the same change. Never report planned architecture as implemented.

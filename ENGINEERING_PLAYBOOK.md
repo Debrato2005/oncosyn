@@ -19,6 +19,7 @@ There is currently no runtime, formatter, linter, type checker, test runner, mig
 - Keep commits focused and independently reviewable. Suggested format: `type(scope): imperative summary`, such as `feat(optimizer): add clone coverage objective`.
 - A pull request explains the user-visible/domain behavior, decisions affected, tests and commands run, data/security impact, rollback path, and documentation updates.
 - Reviewers verify that evidence provenance survives the complete flow, assumptions are visible, errors are safe, and a convenience shortcut has not become biological truth.
+- Reviews distinguish computational promotion from biological/clinical validation, check modality terminology, and require sources for external scientific claims. Negative or baseline-equivalent results remain reportable.
 - Release only from a clean, reviewed revision with a versioned changelog/release note, passing configured checks, documented migration/rollback status, and no unresolved sensitive-data exposure.
 
 ## Environment and secrets
@@ -38,7 +39,7 @@ There is currently no runtime, formatter, linter, type checker, test runner, mig
 ## Observability and production readiness
 
 - Add structured logs with the first API implementation. They must record safe correlation IDs, run IDs, component/version, outcome, latency, and error category—never raw genomic inputs, HLA types, tokens, or secrets. Add metrics, traces, and queue telemetry only when those components exist.
-- Record predictor, optimizer, scenario, and input-schema versions in every analysis result for reproducibility.
+- Record input tier/source, clonal provider, predictor, optimizer/solver, scenario, baseline, and schema versions in every analysis result.
 - Before customer data is enabled, verify authentication/authorization, rate limits, audit logging, data retention/deletion, encryption, backups, dependency scanning, incident response, and operational ownership.
 - A successful HTTP response is insufficient: operational checks must cover infeasible portfolios, missing/incompatible inputs, external evidence failure, stale caches, and version mismatch.
 
@@ -46,6 +47,6 @@ There is currently no runtime, formatter, linter, type checker, test runner, mig
 
 - Prefer the simplest solution that meets the current milestone and preserves the documented domain boundaries.
 - Prefer the simplest implementation that meets the current milestone: a synchronous application service and domain modules first. Defer queues, Redis, workers, object storage, authentication, deployment infrastructure, microservices, multi-region deployment, generalized therapy modes, and speculative scale-out until measured demand requires them.
-- Use existing validated predictors and PyClone-VI clonal inference rather than re-deriving their biology; make OncoSyn's contribution the selection and explanation layer. Reject incomplete read-count, copy-number, or tumour-content evidence rather than filling biological defaults.
-- Do not make clinical or efficacy claims from computational scores.
+- Use replaceable, versioned providers. PyClone-VI and validated precomputed evidence implement one generic clonal boundary; MHCflurry implements the first prediction boundary. Reject inadequate inputs, never generate pseudo-counts/default biological values, and do not train an MVP MHC model.
+- Treat a threshold-passing result only as a computational hypothesis for downstream investigation. Do not make efficacy, clinical, partnership, regulatory-timeline, or cross-modality claims from scores or plans.
 - If a decision materially changes a README architecture contract, update the contract and an architecture record before or with the implementation—not afterward.

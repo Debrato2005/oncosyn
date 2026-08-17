@@ -6,7 +6,7 @@ Deferred. The initial product uses a synchronous application service. No API, Re
 
 ## Problem
 
-Candidate generation and portfolio optimization can run longer than a web request is allowed to stay open. Retrying a timed-out request must not produce duplicate analyses or lose the evidence/provenance needed for an escape certificate.
+Candidate generation and portfolio optimization may eventually exceed a web request. Retrying must not duplicate analyses or lose evidence/provenance needed for a hypothesis certificate; no runtime measurement yet proves that a queue is required.
 
 ## Constraints
 

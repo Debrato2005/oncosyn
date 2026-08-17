@@ -1,95 +1,60 @@
-# ADR 0006: PyClone-VI clonal-inference provider
+# ADR 0006: Clonal-inference provider and PyClone-VI adapter
 
 ## Status
 
-Accepted for MVP planning. No runtime, PyClone-VI environment, provider, or test fixture exists yet.
+Accepted for MVP planning. No provider/runtime/fixture is implemented.
 
-## Problem
+## Problem and verified distinction
 
-OncoSyn's portfolio objective needs clone/subclone assignments, cellular prevalence (CCF), and uncertainty. Those values are not inferred by OncoSyn's novel algorithm. The MVP adopts PyClone-VI as an upstream biological-inference component and must neither invent missing variant/copy-number/purity inputs nor couple the domain or optimizer to PyClone-VI's TSV, CLI, or HDF5 files.
+The optimizer needs uncertain mutation clusters and cellular prevalence, but clonal inference is upstream biology—not OncoSyn novelty. The original PyClone family and PyClone-VI both use sequencing-derived allele counts and copy-number/purity evidence. PyClone-VI adds scalable variational inference suitable for larger mutation sets; it is not the “WGS version,” and a number such as “6.1” may be a software/workflow version rather than a data-modality distinction. The [PyClone-VI repository](https://github.com/Roth-Lab/pyclone-vi), [PyClone-VI publication](https://pmc.ncbi.nlm.nih.gov/articles/PMC7730797/), and [original PyClone repository](https://github.com/Roth-Lab/pyclone) are the upstream sources; versions must be checked again at implementation.
 
-## Verified upstream contract
+Neither provider reconstructs a definitive phylogenetic tree. Cluster assignments/prevalence are uncertain estimates.
 
-PyClone-VI documents a tab-delimited mutation-by-sample input with these required columns in its [official README](https://github.com/Roth-Lab/pyclone-vi):
+## Exact PyClone-VI contract
 
-| Column | Required meaning |
-| --- | --- |
-| `mutation_id` | Stable mutation identifier shared across samples. |
-| `sample_id` | Tumour sample identifier. |
-| `ref_counts` | Reads supporting the reference allele. |
-| `alt_counts` | Reads supporting the alternate allele. |
-| `major_cn` | Major allele copy number for the segment overlapping the mutation. |
-| `minor_cn` | Minor allele copy number for that segment. |
-| `normal_cn` | Total copy number in healthy tissue at that segment. |
+The official tabular input requires one mutation/sample row with `mutation_id`, `sample_id`, `ref_counts`, `alt_counts`, `major_cn`, `minor_cn`, and `normal_cn`. Upstream `tumour_content` and `error_rate` may have defaults; OncoSyn requires explicit `tumour_content` and declared settings. It never fabricates counts, copy number, or purity. Reported VAF/depth may support input adequacy checks but cannot become invented reference/alternate pseudo-counts.
 
-`tumour_content` and `error_rate` are optional upstream columns; PyClone-VI defaults them to `1.0` and `0.001`. OncoSyn will be stricter: `tumour_content` is required and must be explicitly supplied for every selected tumour sample. OncoSyn will not manufacture purity, copy-number values, or read counts. Variant allele frequency is derived from the supplied counts when needed for display or validation; it is not an independent input and must not be fabricated.
+PyClone-VI can drop mutations missing across detected samples. OncoSyn therefore validates the selected mutation-by-sample inference matrix and reports exclusions/incompleteness before execution; it cannot silently alter the inference universe.
 
-PyClone-VI removes mutations lacking entries for all detected samples. The OncoSyn input adapter therefore requires a complete mutation-by-selected-sample count/copy-number matrix for the inference set, or rejects the inference request with a typed insufficient-input error. It never silently lets upstream dropping change the clone universe.
+Documented result fields are `mutation_id`, `sample_id`, `cluster_id`, `cellular_prevalence`, `cellular_prevalence_std`, and `cluster_assignment_prob`. These retain uncertainty and do not imply ancestry.
 
-The official result file contains `mutation_id`, `sample_id`, `cluster_id`, `cellular_prevalence`, `cellular_prevalence_std`, and `cluster_assignment_prob`. `cluster_id` is the most probable assignment; cellular prevalence is the CCF estimate. These are uncertainty-bearing estimates, not definitive lineage or biological facts.
-
-## Selected integration boundary
+## Selected provider boundary
 
 ```text
-normalized variant/copy-number/purity records
-  -> ClonalInferenceProvider interface
-  -> PyCloneVIProvider serializes a private TSV
-  -> `pyclone-vi fit` produces a private HDF5 result
-  -> `pyclone-vi write-results-file` produces a TSV
-  -> provider parses and validates normalized inference result
-  -> mutation -> inferred-clone assignment with uncertainty
-  -> candidate -> source mutation -> inferred clone assignment
+normalized molecular evidence
+  -> ClonalInferenceProvider.eligibility()
+  -> explicit provider selection
+     -> PyCloneVIProvider -> pinned process/files -> normalized result
+     -> PrecomputedClonalEvidenceProvider -> validate provenance/schema -> normalized result
+  -> candidate -> mutation -> uncertain clone distribution
 ```
 
-The domain receives only normalized records:
+Provider input: stable mutation/sample IDs, actual allele counts, allele-specific/normal copy number, explicit tumour content, sample design, settings, source identities, and input-tier metadata. Provider output: normalized mutation/cluster assignments, cellular prevalence and standard error, assignment posterior, exclusions/limitations, provider/version/settings, provenance, and typed status. A supplied compatible reconstruction may separately add lineage edges; inference output alone may not.
 
-- **input:** stable mutation and sample IDs; reference/alternate read counts; allele-specific major/minor copy number; normal copy number; explicit tumour content; declared PyClone-VI settings and provider version;
-- **output:** mutation/sample most-probable cluster assignment, cellular prevalence and standard error, posterior for that assignment, provider version/settings, source-record identities, and a typed status;
-- **not output:** a definitive parent-child clone tree or any clinical conclusion.
+`PyCloneVIProvider` owns TSV serialization, process invocation, private temporary artifacts, result parsing, and normalization. `PrecomputedClonalEvidenceProvider` validates externally supplied estimates and provenance; it is never labelled as a PyClone-VI run. The application service selects a provider explicitly. Domain, optimizer, API, and repositories know only the generic contract and never silently fall back.
 
-`PyCloneVIProvider` owns TSV serialization, process invocation, private temporary files, HDF5/result parsing, and translation to the normalized result. The application service owns provider selection and run status. The domain, candidate pipeline, optimizer, repositories, and API must not import PyClone-VI or read its file formats.
+Use a pinned external executable/environment if PyClone-VI cannot safely coexist with the application runtime. An unavailable/mis-versioned executable returns `clonal_inference_provider_unavailable`. A deterministic fixture provider is test/demo-only and labelled in every result.
 
-Use a version-pinned dedicated PyClone-VI environment or executable, not an unverified in-process dependency of the future application runtime. The official installation path is a Conda/Bioconda environment. Before enabling the real provider, verify the executable and version in the target runtime. If that check fails, return `clonal_inference_provider_unavailable`; do not silently substitute another inference algorithm. A deterministic fixture provider exists only for tests and offline demonstrations and is labelled as such in its output.
+## Targeted-panel policy
 
-## Uncertainty and mapping semantics
+Tier A does not guarantee adequate clonal inference. Eligibility must assess actual counts, depth/quality, purity, copy number, mutation density/breadth, and sample completeness. If mandatory PyClone-VI fields are absent, reject that provider. If technically runnable but sparse, expose a reduced-confidence/limited-ascertainment status and state that unobserved tumour heterogeneity is not covered. Minimum defensible thresholds are an open benchmark question in [`../research-and-validation.md`](../research-and-validation.md), not an invented constant.
 
-The normalized result retains both `cellular_prevalence_std` and `cluster_assignment_prob`. Candidate-to-clone mapping must retain the source mutation's most-probable `cluster_id` and its assignment posterior; it must not invent probabilities for unreported alternative clusters. The portfolio service receives clone prevalence/CCF uncertainty and candidate-to-clone assignment uncertainty as scenario inputs. It may optimize against declared baseline and adverse scenarios but must report modelled residual uncovered clone mass or modelled escape risk, never a clinical escape probability.
+## Uncertainty and optimizer semantics
 
-PyClone-VI clusters mutation prevalence patterns. It does not establish a definitive evolutionary ancestry. Clone coverage is always allowed; a phylogenetic/ancestry visualization is allowed only if an explicit compatible reconstruction supplies lineage edges and provenance.
+Retain `cellular_prevalence_std` and `cluster_assignment_prob` through candidate-to-mutation-to-clone mapping. Do not invent posterior mass for unreported alternative clusters. The optimizer consumes declared perturbations/distributions and reports coverage, residual uncovered mass, or modelled escape risk—not clinical escape probability. Cluster coverage is allowed; ancestry views require separately compatible, provenance-bearing reconstruction.
 
-## Validation and failure behaviour
+## Failure and security behaviour
 
-Reject before invoking the provider when any selected mutation/sample record is missing an identifier, read counts, allele-specific copy-number values, normal copy number, or explicit tumour content; when counts are unusable; or when the selected inference matrix is incomplete. The error identifies missing fields and record identities without echoing sensitive molecular values.
+Return typed insufficient/limited input, provider unavailable, serialization/execution, malformed/non-finite result, unmatched-row, timeout/cancellation, and precomputed-provenance failures. Errors identify fields/records without echoing molecular values. No partial/failed inference becomes a successful certificate. Temporary artifacts remain private, unlogged, untracked, and subject to retention policy.
 
-Return typed failures for:
+## Test strategy
 
-- unavailable/mis-versioned PyClone-VI executable or environment;
-- serialization or private-workspace failure;
-- non-zero `fit` or `write-results-file` execution;
-- malformed, incomplete, or non-finite result values;
-- result rows that cannot be matched back to the immutable normalized input; and
-- cancellation or timeout once execution limits are introduced.
+- Deterministic synthetic matrices with explicit counts/CN/purity; no patient data, credentials, or network.
+- Eligibility tests for both tiers, each mandatory field, incomplete matrices, VAF-only rejection, and sparse-panel limitation.
+- Golden serializer/parser fixtures plus provider contract tests for PyClone-VI, precomputed evidence, and labelled fixture providers.
+- Separately marked offline real-provider test in the pinned environment; compare normalized public fields, not internals.
+- Prove provider unavailability never causes fallback; prove mappings preserve uncertainty and scenarios consume it.
 
-No failed or partial inference result becomes a successful escape certificate. Temporary upstream artifacts are private, excluded from logs and version control, and deleted according to the run's approved retention policy once such storage exists.
+## Alternatives rejected and deferred work
 
-## Test strategy before implementation
-
-- Use deterministic synthetic normalized variant matrices containing explicit counts, copy numbers, and tumour content. No real patient data, external credentials, or network access is permitted.
-- Test input validation for every mandatory field, incomplete mutation/sample matrices, and rejected absent purity/copy-number information.
-- Unit-test the serializer against a checked-in synthetic TSV expectation and the parser against checked-in synthetic PyClone-VI result TSV fixtures.
-- Contract-test the provider interface with a deterministic fixture provider that returns known cluster distributions, CCF standard errors, and assignment probabilities.
-- Add a separately marked, offline integration test that runs the real version-pinned PyClone-VI executable against the same synthetic fixture only after the environment is provisioned. It must compare normalized fields, not rely on an undocumented internal file format.
-- Test that unavailable PyClone-VI produces the typed unavailable result and never falls back to a different algorithm.
-- Test that candidate-to-mutation-to-clone mapping preserves the documented assignment uncertainty and that the optimizer consumes it through declared scenarios.
-
-## Alternatives rejected
-
-- **Continue requiring supplied clone assignments:** rejected because the MVP now includes clonal inference.
-- **Pass raw VCF/BAM files directly to PyClone-VI:** rejected because the upstream contract needs extracted read counts, allele-specific copy number, and tumour content; raw ingestion and variant calling remain out of scope.
-- **Fill missing purity/copy-number values with defaults:** rejected because it creates untraceable biological assumptions. PyClone-VI's upstream defaults do not authorize OncoSyn to invent them.
-- **Treat `cluster_id` as a phylogenetic tree:** rejected because clustering is not definitive ancestry reconstruction.
-- **Replace a missing PyClone-VI runtime with another tool:** rejected because it changes biological inference without an explicit decision and validation.
-
-## Deferred work
-
-Raw-data processing, variant calling, purity/copy-number estimation, lineage reconstruction, longitudinal clonal evolution, and probability calibration are separate work. Any change to PyClone-VI version, input-completeness policy, or provider replacement requires a revision to this record and the test fixtures.
+Rejected: raw VCF/BAM input; purity/CN/count defaults; pseudo-counts from VAF; cluster-as-tree; silent provider replacement; rejecting all precomputed evidence. Deferred: provider benchmarks, original-PyClone compatibility, other inference tools, raw processing, lineage reconstruction, longitudinal evolution, and calibrated panel-adequacy thresholds. Provider/threshold changes require this ADR and fixture revision.

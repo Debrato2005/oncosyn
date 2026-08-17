@@ -19,6 +19,8 @@ OncoSyn is intended to process tumour and HLA-related information, which can be 
 
 Use synthetic or openly usable, preprocessed and non-sensitive analysis fixtures until the production controls below are implemented and verified. Treat each analysis input and output as a versioned immutable snapshot. Keep external/public evidence sources separate from patient-specific verification actions in both the model and the presentation.
 
+Classify inputs as Tier A targeted-panel or Tier B research-rich processed evidence under the README contract. Store the tier, observed scope, exclusions, and adequacy/limitation status. Neither tier authorizes raw sequencing ingestion, and a targeted panel must not be presented as a complete view of tumour heterogeneity.
+
 Before customer/patient-derived data can be enabled, implement and approve: workspace authorization; audit logging; encrypted transport and storage; secret management; retention/deletion and backup/restore processes; incident response; data classification; and access review. Record verification evidence for those controls before enabling the feature.
 
 No raw patient sequencing, identifiers, access-controlled datasets, tokens, or credentials may be committed. A patient-data workflow is not enabled merely by adding an upload endpoint.
@@ -33,9 +35,9 @@ No raw patient sequencing, identifiers, access-controlled datasets, tokens, or c
 
 ```text
 synthetic/public preprocessed fixture
-  -> validated immutable analysis input
+  -> validated immutable tiered analysis input
   -> versioned candidate and clone evidence
-  -> versioned portfolio result and escape certificate
+  -> versioned portfolio result and hypothesis certificate
 ```
 
 If public evidence is queried in a future implementation, record source identity, retrieval time, source version when available, query parameters, and result status. If a source is unavailable, preserve the failure as missing evidence; do not substitute a success or fabricate a value.
