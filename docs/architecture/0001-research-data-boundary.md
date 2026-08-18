@@ -19,7 +19,7 @@ OncoSyn is intended to process tumour and HLA-related information, which can be 
 
 Use synthetic or openly usable, preprocessed and non-sensitive analysis fixtures until the production controls below are implemented and verified. Treat each analysis input and output as a versioned immutable snapshot. Keep external/public evidence sources separate from patient-specific verification actions in both the model and the presentation.
 
-Classify inputs as Tier A targeted-panel or Tier B research-rich processed evidence under the README contract. Store the tier, observed scope, exclusions, and adequacy/limitation status. Neither tier authorizes raw sequencing ingestion, and a targeted panel must not be presented as a complete view of tumour heterogeneity.
+Classify inputs as Tier A targeted-panel or Tier B research-rich processed evidence under the README contract. Tier B may explicitly declare a normalized VEP-annotated-VCF subtype for the pVACseq candidate provider. This is processed variant evidence, not permission to ingest FASTQ/BAM/CRAM, call variants, run HLA typing, or infer purity/CN. Record reference build, normalization method, VEP/cache/plugin versions, source identity, storage/retention status, observed scope, exclusions, and adequacy/limitation status. A targeted panel must not be presented as a complete view of tumour heterogeneity.
 
 Before customer/patient-derived data can be enabled, implement and approve: workspace authorization; audit logging; encrypted transport and storage; secret management; retention/deletion and backup/restore processes; incident response; data classification; and access review. Record verification evidence for those controls before enabling the feature.
 
@@ -34,9 +34,9 @@ No raw patient sequencing, identifiers, access-controlled datasets, tokens, or c
 ## Intended data flow
 
 ```text
-synthetic/public preprocessed fixture
+synthetic/public preprocessed fixture or permitted VEP-annotated Tier B fixture
   -> validated immutable tiered analysis input
-  -> versioned candidate and clone evidence
+  -> explicit candidate-provider and clonal-provider evidence
   -> versioned portfolio result and hypothesis certificate
 ```
 
@@ -52,7 +52,7 @@ If public evidence is queried in a future implementation, record source identity
 ## Testing strategy
 
 - Use only synthetic/non-sensitive fixtures.
-- Test schema rejection, immutable input snapshots, source-provenance capture, unavailable-source handling, and absence of sensitive values in structured logs once logging exists.
+- Test schema rejection, immutable input snapshots, VEP/reference/normalization provenance, candidate-provider eligibility, source-provenance capture, unavailable-source handling, and absence of sensitive values in structured logs once logging exists.
 - Add security, authorization, retention, encryption, backup, deletion, and audit tests before any patient-data feature is proposed for release.
 
 ## Deferred work

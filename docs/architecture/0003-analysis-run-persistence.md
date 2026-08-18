@@ -23,13 +23,16 @@ Use managed PostgreSQL as the system of record behind persistence/repository ada
 - analysis-run identity, creation metadata, and schema version;
 - normalized input snapshot and its content identity;
 - input tier, observed scope, adequacy/limitation status, source identities, and normalized snapshot;
-- selected clonal-inference provider identity/settings, normalized or validated precomputed result, and its uncertainty-bearing mutation-to-clone distribution;
+- selected clonal-inference provider identity/settings, normalized or validated precomputed result, and its selected mutation-to-cluster evidence with reported uncertainty;
 - generated candidate evidence and provenance;
+- selected candidate-provider identity/version/settings/runtime, reference/VEP/model data where applicable, eligibility/filter decisions, and licensing status;
 - clonal evidence and declared escape scenarios;
 - baseline results, portfolio result, solver status, scenarios, and algorithm versions; and
-- the completed hypothesis certificate, including assumptions, failure modes, sensitivity, and next validation action.
+- the completed hypothesis certificate, including assumptions, failure modes, stability, sensitivity, and next validation actions with their decision linkage.
 
 The domain service creates immutable records through the adapter. The API/delivery layer reads a certificate through the same boundary. The database model is not the domain model.
+
+Prefer a small relational run index plus versioned immutable structured artifacts rather than a premature normalized genomics warehouse. Conceptually, `analysis_runs` owns identity, timestamps, status, schema/tier/subtype, input/configuration hashes, idempotency-key hash, selected providers/optimizer, and safe failure metadata. `analysis_artifacts` owns a run foreign key, artifact type, schema version, structured payload, content hash, and creation time, with at most one artifact of a given type/version per run unless an explicit revision model is introduced. Expected Version 1 artifact classes include input snapshot, candidate evidence, clonal evidence, mapping, scenarios, baselines, portfolio, stability, sensitivity, experiment definitions, and certificate. Version 3 may add observation and research-state-update artifacts only after ADR 0011's evidence gates are met. Exact SQL belongs to the implementation migration.
 
 ## Alternatives rejected
 
@@ -42,7 +45,7 @@ The domain service creates immutable records through the adapter. The API/delive
 
 ```text
 validated molecular input -> immutable run snapshot -> PostgreSQL
-  -> selected clonal-provider records -> candidate/clone/scenario/baseline records
+  -> selected candidate/clonal-provider records -> candidate/cluster/scenario/baseline artifacts
   -> optimizer result -> immutable hypothesis certificate -> PostgreSQL -> API/UI read model
 ```
 

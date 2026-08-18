@@ -1,4 +1,4 @@
-# ADR 0002: Escape-aware hypothesis certificate
+# ADR 0002: Research hypothesis and decision-sensitivity certificate
 
 ## Status
 
@@ -12,26 +12,27 @@ A selected list or single score cannot show why a portfolio is preferable, how u
 
 Each successful or partial run emits an immutable certificate expressing:
 
-> Given tumour-state snapshot `S`, evidence `E`, constraints `C`, and scenarios `R`, portfolio `P` is predicted to be more robust under the declared objective than named baseline `B`.
+> Given tumour-state snapshot `S`, evidence `E`, constraints `C`, and scenarios `R`, portfolio `P` achieved the declared model objective relative to named baseline `B`; the result remains a research hypothesis.
 
 The certificate contains:
 
 1. selected `K` candidates and exclusions;
 2. each candidate's source mutation;
-3. candidate-to-inferred-clone distributions and uncertainty;
+3. candidate-to-source-mutation-to-selected-cluster evidence, including the uncertainty actually reported by the selected clonal provider;
 4. candidate quality/evidence and complete provenance;
-5. named escape/uncertainty scenarios and modelled coverage/residual uncovered mass;
-6. comparison with score Top-`K`, clonality-weighted, coverage-only, and reproducible escape/minimax baselines;
-7. input tier, provider/predictor/optimizer/solver/schema/source versions and settings;
+5. named measurement/adverse scenarios, per-cluster candidate support, and explicitly defined uncovered clonal-support scores that are not tumour-mass fractions;
+6. comparison with score Top-`K`, clonality-weighted, cluster-support-only, reproducible minimax, pVACseq ranking, and prior-art optimization where comparable;
+7. input tier, reference/VEP data where applicable, candidate/clonal provider, predictor/model/license, optimizer/solver/schema/source versions and settings;
 8. assumptions, limitations, missing evidence, eligibility decisions, and failure modes;
-9. sensitivity: which evidence changes selection or objective values; and
-10. next experiment, public evidence check, or patient-specific verification most likely to resolve a decision.
+9. portfolio stability and sensitivity: which evidence, provider/configuration choice, or declared perturbation changes selection or objective values;
+10. feasible next experiments, public evidence checks, or patient-specific verification ranked by declared decision impact; and
+11. the acquisition method and its limits—for Version 1, bounded re-solving/sensitivity rather than uncalibrated Bayesian experimental design.
 
-Candidate generation, prediction, clonal mapping, optimization, baselines, and certificate assembly remain separate. The certificate never calls modelled risk a clinical probability.
+Candidate generation, prediction, clonal mapping, optimization, baselines, experiment-definition assembly, and certificate assembly remain separate. A proposed experiment is not an observation. PyClone cluster prevalences are not summed as mutually exclusive tumour mass, and the certificate never calls a model score or risk a clinical probability.
 
 ## Status and interpretation
 
-Output status is `complete`, `partial`, `infeasible`, or typed failure. Unknown evidence cannot default to favourable. A threshold-passing result is labelled a **computational hit promoted for downstream investigation**, not a validated hit. Equivalent or inferior performance to a baseline must be reported.
+Output status is `complete`, `partial`, `infeasible`, or typed failure. Unknown evidence cannot default to favourable. Evidence is labelled directly observed, inferred, literature-prior, hypothetical, or currently unidentifiable. A threshold-passing result is labelled a **computational hit promoted for downstream investigation**, not a validated hit. Equivalent or inferior performance to a baseline must be reported.
 
 ## Data flow, errors, and security
 
@@ -44,7 +45,7 @@ The certificate references sensitive inputs by controlled identifiers and never 
 
 ## Testing strategy
 
-Golden synthetic tests cover all fields, versions, assumptions, selection/exclusion rationale, uncertainty, equivalent/inferior baselines, partial/infeasible states, deterministic serialization, and safe redaction. Sensitivity tests include perturbations that change and do not change the portfolio. End-to-end fixtures test the central hypothesis without clinical claims.
+Golden synthetic tests cover all fields, versions, assumptions, evidence classifications, selection/exclusion rationale, uncertainty, equivalent/inferior baselines, partial/infeasible states, deterministic serialization, and safe redaction. Sensitivity tests include perturbations that change and do not change the portfolio and experiment rankings. End-to-end fixtures test the central hypothesis without clinical claims.
 
 ## Alternatives and deferred work
 

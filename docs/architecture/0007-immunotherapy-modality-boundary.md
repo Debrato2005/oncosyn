@@ -10,14 +10,15 @@ Neoantigen vaccines, TCR-T, and conventional CAR-T do not share one target repre
 
 ## Selected design and data flow
 
-The MVP uses mutant peptide, HLA, presentation/binding, source mutation, expression, uncertain clone distribution, and provenance for vaccine/T-cell portfolios. TCR-T is a future extension with recognition, cross-reactivity, expression/processing, safety, and developability constraints.
+Version 1 uses a unique mutant peptide as the portfolio unit, with per-HLA presentation/binding evidence, source mutation, expression, selected-cluster support and reported uncertainty, and provenance for vaccine/T-cell research. Version 2 Track A may promote `(peptide, HLA)` to target identity for TCR-T and needs recognition, cross-reactivity, expression/processing, safety-evidence, and developability constraints. Vaccine-construct design also has its own manufacturability and assay constraints.
 
-Conventional CAR-T is a later separate model because it primarily recognizes accessible cell-surface antigens rather than peptide/HLA complexes. It requires surface abundance/accessibility, tumour specificity, normal-tissue/off-tumour risk, prevalence, spatial heterogeneity, stability, and antigen-loss evidence.
+Version 2 Track B is a separate CAR target-and-logic model because conventional CARs primarily recognize accessible cell-surface antigens rather than peptide/HLA complexes. It requires quantitative surface abundance/accessibility and uncertainty, tumour and normal-cell states, logic feasibility, prevalence, spatial heterogeneity, stability, shedding/internalization evidence where available, and antigen-loss/downregulation scenarios. ADR 0010 owns this future research boundary.
 
 ```text
 shared tumour-state/provenance
-  -> neoantigen contract -> vaccine/TCR-oriented portfolio (MVP)
-  -> future surface-antigen contract -> CAR-T portfolio (separate validation)
+  -> Version 1 neoantigen contract -> mutant-peptide portfolio
+  -> Version 2 Track A -> vaccine/TCR-T design hypotheses
+  -> Version 2 Track B -> CAR target-and-logic design hypotheses
 ```
 
 Generic set-selection primitives may be shared, but each modality owns eligibility, evidence, scenarios, constraints, certificate wording, and validation.
@@ -34,6 +35,6 @@ Reject mismatched modality records; never coerce them. Certificates name their m
 
 ## Testing and deferred work
 
-Contract tests must reject cross-modality records and prove modality-specific constraints, provenance, and terminology. TCR-T is V3; a dedicated surface-antigen/CAR-T ADR and validation are V4. Small-molecule portfolios remain deferred.
+Contract tests must reject cross-modality records and prove modality-specific constraints, provenance, and terminology. Version 2 work begins only after its modality-specific evidence and validation gate; it must not be folded into Version 1. Small-molecule portfolios remain deferred.
 
 This boundary reflects the established mechanistic distinction that TCRs recognize peptide–MHC complexes while CARs recognize cell-surface antigens, summarized in this [authoritative review](https://pubmed.ncbi.nlm.nih.gov/39495525/). Implementation must verify and cite current evidence for detailed modality claims.

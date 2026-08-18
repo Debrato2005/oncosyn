@@ -1,39 +1,63 @@
-# OncoSyn — Evolution-Aware Immunotherapy Hypothesis and Target-Portfolio Engine
+# OncoSyn — Evolution-Aware Immunotherapy Research Co-Design
 
-## Problem
+## North-star problem
 
-Given many plausible tumour-specific immunotherapy targets, which small combination should investigators take forward? OncoSyn aims to reduce the search and prioritization space between tumour molecular profiling and downstream experimental therapeutic development.
+Given a heterogeneous tumour state and several plausible immunotherapy designs, which targets should researchers combine, which modality-specific design should they investigate, how could it fail, what evidence is missing, and which feasible experiment is most likely to change the decision?
 
-The MVP accepts processed tumour evidence, infers uncertain clonal structure through a replaceable provider, generates and scores peptide/HLA candidates, and selects a bounded portfolio across inferred heterogeneity and declared escape scenarios. It returns a traceable, falsifiable research hypothesis—not a treatment recommendation or validated therapeutic.
+OncoSyn aims to reduce the search and experimental prioritization space between processed tumour evidence and downstream immunotherapy research. It produces traceable computational research hypotheses—not treatment recommendations, efficacy predictions, safe therapeutic designs, or validated targets.
 
-## MVP contract
+## Version 1 contract
 
-**Processed tumour profile → uncertain clone evidence → neoantigen/T-cell candidates → evolution-aware `K`-candidate portfolio → hypothesis certificate.**
+Version 1 is the implementable MVP: the **Heterogeneity-Aware Neoantigen Target Portfolio Engine**.
 
-- **Tier A:** targeted-panel mutations; actual read counts where available (or VAF/depth for adequacy assessment); copy number; purity; sample metadata; HLA; optional expression.
-- **Tier B:** WES/WGS-derived processed calls, matched normal, allele-specific copy number, HLA, RNA, and optional multiregion/longitudinal evidence.
+**Processed tumour profile → uncertain clone evidence → peptide candidates → bounded portfolio across declared scenarios → stability and decision-sensitivity analysis → hypothesis certificate.**
 
-Raw sequencing, calling, HLA typing, purity/copy-number estimation, and invented phylogeny are out of scope. Limited panels are labelled incomplete views of heterogeneity. PyClone-VI runs only with its exact actual read-count, copy-number, and tumour-content evidence; no defaults or pseudo-counts. Explicit validated precomputed clone evidence is a separate provider option.
+- **Tier A — targeted-panel:** mutations; actual read counts where available (or VAF/depth for adequacy assessment); copy number; purity; sample metadata; HLA; processed mutant protein context or supplied peptides; optional expression.
+- **Tier B — research-rich:** WES/WGS-derived processed calls, including a labelled normalized VEP-annotated-VCF subtype; matched normal, allele-specific copy number, HLA, RNA, and optional multiregion or longitudinal evidence.
+
+Raw sequencing, variant calling, HLA typing, purity/copy-number estimation, and invented phylogeny are out of scope. Limited panels are labelled incomplete views of heterogeneity. A PyClone-family provider runs only with actual allele counts, copy-number evidence, explicit tumour content, and adequate sample/mutation evidence. VAF must never become fabricated pseudo-counts. Validated precomputed clone evidence is an explicit alternative provider, never a silent fallback.
 
 ```text
-processed molecular data + HLA -> mutations
-  -> ClonalInferenceProvider (PyClone-VI first, or explicit precomputed evidence)
-  -> uncertain clone assignments/prevalence
-  -> peptide enumeration -> MHCflurry-first prediction -> candidate evidence
-  -> candidate -> mutation -> inferred clone distribution
-  -> bounded optimizer over named scenarios -> hypothesis certificate
+processed molecular data + HLA
+  -> explicit NeoantigenCandidateProvider
+     -> pVACseq all_epitopes for eligible VEP input
+     -> native enumeration + MHCflurry for processed protein/peptides
+  -> explicit ClonalInferenceProvider
+     -> PyClone-VI first adapter OR validated precomputed evidence
+  -> candidate -> mutation -> selected-cluster evidence + reported uncertainty
+  -> bounded optimizer over named measurement/adverse scenarios
+  -> baseline comparison + stability + decision-sensitivity ranking
+  -> immutable hypothesis certificate
 ```
 
-## Contribution and output
+PyClone-VI is the first adapter, not a universal scientific default. Its variational approximation can underestimate posterior variance, so provider, configuration, seed, and input-adequacy sensitivity must be tested when they affect selection. A cluster is neither ancestry nor an additive tumour-mass component.
 
-OncoSyn investigates **uncertainty-aware, multi-objective therapeutic portfolio selection across inferred tumour heterogeneity and defined evolutionary/escape scenarios**. PyClone-VI, MHCflurry, NetMHCpan, pVACtools-derived workflows, and other upstream tools remain replaceable and are not the novel algorithm.
+## Research contribution
 
-The certificate tests whether portfolio `P`, under supplied tumour state and assumptions, is predicted more robust than named baseline `B`. It records selected candidates, source mutations, inferred clones, evidence, uncertainty, escape scenarios, baseline comparisons, coverage/residual uncovered mass, assumptions, failure modes, and next experiment or data check. Baselines include individual Top-`K`, clonality-weighted, coverage-only, and reproducible escape/minimax formulations.
+Neoantigen ranking, clonality-aware prioritization, vaccine-construct generation, heterogeneity-aware portfolio optimization, CAR target-pair discovery, Boolean CAR targeting, evolutionary treatment modelling, and active experimental design all have material prior art. OncoSyn does not claim novelty for integrating those capabilities.
 
-A threshold-passing candidate/portfolio is a **computational hit promoted for downstream experimental investigation**, not a validated hit. Evaluation measures computational reduction, retained evidence, robustness, runtime, and source support; it must not invent clinical efficacy.
+The research thesis is instead:
 
-## Modality and claims
+> Existing tools usually rank or optimize targets at a fixed stage. OncoSyn investigates whether jointly modelling heterogeneous tumour-state evidence, modality-specific design constraints, decision uncertainty, failure scenarios, and experiment value can improve sequential multi-target immunotherapy research decisions.
 
-The MVP is a neoantigen/T-cell immunotherapy track. Peptide/HLA evidence applies to vaccine and TCR-T research. Conventional CAR-T is a separate future surface-antigen modality requiring tumour specificity, normal-tissue/off-tumour, prevalence, stability, heterogeneity, and antigen-loss constraints. Small-molecule target optimization is deferred.
+For Version 1, this becomes a falsifiable question: can uncertainty-aware portfolio selection plus decision-sensitivity analysis reduce the experiments required to identify a stable neoantigen portfolio compared with score ranking, heterogeneity-aware optimization, generic uncertainty sampling, and other declared baselines?
 
-OncoSyn does not claim a better vaccine, relapse prevention, clinical benefit, diagnosis, validation, or regulatory readiness. See [`README.md`](README.md), [`docs/architecture/`](docs/architecture/), and [`docs/research-and-validation.md`](docs/research-and-validation.md).
+The certificate records selected and excluded candidates, source mutations, inferred clusters, evidence, uncertainty, scenarios, same-input baseline comparisons, per-cluster support, explicitly defined uncovered-support scores, assumptions, limitations, failure modes, portfolio stability, and the next evidence check or experiment predicted to have decision value. That prediction is itself an experimental hypothesis.
+
+A threshold-passing candidate or portfolio is a **computational hit promoted for downstream experimental investigation**, not a biological or clinical hit.
+
+## Exactly three versions
+
+1. **Version 1 — Heterogeneity-Aware Neoantigen Target Portfolio Engine.** Observed-state neoantigen portfolios, propagated uncertainty, stability analysis, fair baselines, and decision-focused validation prioritization.
+2. **Version 2 — Modality-Specific Immunotherapy Co-Design Engine.** Separate vaccine/TCR-T and CAR target-and-logic tracks sharing only evidence, provenance, uncertainty, optimization primitives, and experiment schemas.
+3. **Version 3 — Adaptive Immunotherapy R&D Engine.** Evidence-gated stress tests, experiment selection, observation-driven updating, contingency hypotheses, and carefully bounded evolutionary scenarios.
+
+Version 2 CAR research must model accessible surface antigens, quantitative density and its uncertainty, tumour and normal-cell states, logic feasibility, heterogeneity, and antigen-loss/downregulation scenarios. It cannot claim to design a safe or effective CAR-T product. Version 3 must not claim to predict patient tumour evolution; state-space or sequential-control models require identifiable transition and observation evidence first.
+
+Small-molecule target optimization remains deferred.
+
+## Claim boundary
+
+OncoSyn may report a computational research hypothesis, modelled scenario, design hypothesis, stress test, validation recommendation, experiment-selection hypothesis, or contingency strategy. It does not claim diagnosis, treatment benefit, relapse prevention, clinical coverage, safety, efficacy, validated hits, partnerships, regulatory readiness, or patient-specific evolutionary prediction.
+
+See [`README.md`](README.md), [`docs/research-and-validation.md`](docs/research-and-validation.md), and [`docs/architecture/`](docs/architecture/).
